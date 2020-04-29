@@ -189,18 +189,18 @@ void wave::load(QString path)
         return;
     }
 
-    if((ChunkID = wave::read_field(file, big, 4)) != 0x52494646) {displayError(*new QString("File could not be loaded. File is not RIFF.")); wave::init(); return;}
+    if((ChunkID = wave::read_field(file, big, 4)) != 0x52494646) {displayError(*new QString("File could not be loaded. File is not RIFF.")); wave::init(); file.close(); return;}
     ChunkSize = wave::read_field(file, little, 4);
-    if((Format = wave::read_field(file, big, 4)) != 0x57415645) {displayError(*new QString("File could not be loaded. File is not WAVE.")); wave::init(); return;}
-    if((Subchunk1ID = wave::read_field(file, big, 4)) != 0x666D7420) {displayError(*new QString("File could not be loaded. Subchunk1 is not fmt.")); wave::init(); return;}
-    if((Subchunk1Size = wave::read_field(file, little, 4)) != 0x00000010) {displayError(*new QString("File could not be loaded. Subchunk1 doesn't match fmt format.")); wave::init(); return;}
-    if((AudioFormat = wave::read_field(file, little, 2)) != 0x0001) {displayError(*new QString("File could not be loaded. Quantization is not linear.")); wave::init(); return;}
-    if((NumChannels = wave::read_field(file, little, 2)) > 0x0002) {displayError(*new QString("File could not be loaded. Audio has more than 2 channels.")); wave::init(); return;}
+    if((Format = wave::read_field(file, big, 4)) != 0x57415645) {displayError(*new QString("File could not be loaded. File is not WAVE.")); wave::init(); file.close(); return;}
+    if((Subchunk1ID = wave::read_field(file, big, 4)) != 0x666D7420) {displayError(*new QString("File could not be loaded. Subchunk1 is not fmt.")); wave::init(); file.close(); return;}
+    if((Subchunk1Size = wave::read_field(file, little, 4)) != 0x00000010) {displayError(*new QString("File could not be loaded. Subchunk1 doesn't match fmt format.")); wave::init(); file.close(); return;}
+    if((AudioFormat = wave::read_field(file, little, 2)) != 0x0001) {displayError(*new QString("File could not be loaded. Quantization is not linear.")); wave::init(); file.close(); return;}
+    if((NumChannels = wave::read_field(file, little, 2)) > 0x0002) {displayError(*new QString("File could not be loaded. Audio has more than 2 channels.")); wave::init(); file.close(); return;}
     SampleRate = wave::read_field(file, little, 4);
     ByteRate = wave::read_field(file, little, 4);
     BlockAlign = wave::read_field(file, little, 2);
-    if((BitsPerSample = wave::read_field(file, little, 2)) != 0x0010) {displayError(*new QString("File could not be loaded. Audio is not 16-bit.")); wave::init(); return;}
-    if((Subchunk2ID = wave::read_field(file, big, 4)) != 0x64617461) {displayError(*new QString("File could not be loaded. Subchunk2 does not contain sample data.")); wave::init(); return;}
+    if((BitsPerSample = wave::read_field(file, little, 2)) != 0x0010) {displayError(*new QString("File could not be loaded. Audio is not 16-bit.")); wave::init(); file.close(); return;}
+    if((Subchunk2ID = wave::read_field(file, big, 4)) != 0x64617461) {displayError(*new QString("File could not be loaded. Subchunk2 does not contain sample data.")); wave::init(); file.close(); return;}
     Subchunk2Size = wave::read_field(file, little, 4);
 
     data = new short[Subchunk2Size / 2];
@@ -209,6 +209,7 @@ void wave::load(QString path)
     {
         displayError(*new QString("Memory allocation error."));
         wave::init();
+        file.close();
         return;
     }
 
@@ -248,7 +249,7 @@ void wave::mergeStereo(wave *stereo)
 
     for (int i = 0; i < this->NumChannels * this->Subchunk2Size / 2; i++)
         {
-            this->data[i] = (stereo->data[2*i]+stereo->data[2*i+1])/2;
+            this->data[i] = (qAbs(stereo->data[2*i])+qAbs(stereo->data[2*i+1]))/2;
         }
 
     this->loaded = true;

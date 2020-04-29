@@ -1,6 +1,7 @@
 #ifndef ENVELOPE_H
 #define ENVELOPE_H
 
+#include <QColor>
 
 class Envelope
 {
@@ -10,7 +11,11 @@ public:
     ~Envelope();
 
     int samples;
-    short *data;
+    double *data;
+
+    QColor *color;
+
+    void setColor(int R, int G, int B, int A);
 };
 
 #endif // ENVELOPE_H

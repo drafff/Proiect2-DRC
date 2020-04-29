@@ -7,6 +7,7 @@
 #include <QtMath>
 #include <QLineEdit>
 #include <QLabel>
+#include <QWheelEvent>
 
 #include <wave.h>
 #include <renderarea.h>
@@ -31,8 +32,10 @@ public:
 
     RenderArea *plot1;
     RenderArea *plot2;
+    RenderArea *plot3;
 
     wave *audio;
+    Envelope *inputEnv;
     Envelope *env1;
     GainComputer *mainGC;
 
@@ -43,12 +46,19 @@ private slots:
     void thresChanged();
     void ratioChanged();
     void kneeChanged();
+    void zoomChanged();
+    void cursorChanged();
+
+    void wheelEvent(QWheelEvent *event) override;
 
 private:
     Ui::MainWindow *ui;
 
     void createActions();
     void createMenus();
+    void updateCursor();
+    void updateZoom();
+    void transformView(QWheelEvent *event);
 
     QMenu *fileMenu;
 
@@ -57,9 +67,16 @@ private:
     QLineEdit *thresEdit;
     QLineEdit *ratioEdit;
     QLineEdit *kneeEdit;
+    QLineEdit *zoomEdit;
+    QLineEdit *cursorEdit;
 
     QLabel *thresLabel;
     QLabel *ratioLabel;
     QLabel *kneeLabel;
+    QLabel *zoomLabel;
+    QLabel *cursorLabel;
+
+    int cursor;
+    double zoom;
 };
 #endif // MAINWINDOW_H

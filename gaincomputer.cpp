@@ -5,6 +5,7 @@ GainComputer::GainComputer()
     threshold = 0;
     ratio = 1;
     kneeWidth = 0;
+    makeupGain = 0;
 
     identity = new Envelope(97);
 
@@ -24,30 +25,34 @@ void GainComputer::setThreshold(double T)
 {
     threshold = T;
 }
-
 void GainComputer::setRatio(double R)
 {
     ratio = R;
 }
-
 void GainComputer::setKneeWidth(double W)
 {
     kneeWidth = W;
+}
+void GainComputer::setMakeupGain(double M)
+{
+    makeupGain = M;
 }
 
 double GainComputer::getThreshold()
 {
     return threshold;
 }
-
 double GainComputer::getRatio()
 {
     return ratio;
 }
-
 double GainComputer::getKneeWidth()
 {
     return kneeWidth;
+}
+double GainComputer::getMakeupGain()
+{
+    return makeupGain;
 }
 
 double GainComputer::gainFunction(double x)

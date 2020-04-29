@@ -9,7 +9,12 @@ RenderArea::RenderArea(QWidget *parent) : QWidget(parent)
 
     sound = nullptr;
     env1 = nullptr;
+    env2 = nullptr;
     gainComputer = nullptr;
+    drawParam = nullptr;
+
+    cursor = 0;
+    zoom = 1;
 }
 
 QSize RenderArea::sizeHint() const
@@ -37,9 +42,9 @@ int RenderArea::getMax(wave *audio, unsigned int start, unsigned int end, int in
     return max;
 }
 
-int RenderArea::getMax(Envelope *env, unsigned int start, unsigned int end)
+double RenderArea::getMax(Envelope *env, unsigned int start, unsigned int end)
 {
-    int max = 0;
+    double max = -96.33;
 
     for(unsigned int i = start + 1; i < end; i++)
     {
@@ -56,7 +61,7 @@ int RenderArea::getMin(wave *audio, unsigned int start, unsigned int end, int in
 {
     int min = 0;
 
-    for(unsigned int i = (start + 1)*increment; i < end*increment; i = i + increment)
+    for(unsigned int i = start*increment; i < end*increment; i = i + increment)
     {
         if(audio->data[i] < min)
         {
@@ -67,17 +72,37 @@ int RenderArea::getMin(wave *audio, unsigned int start, unsigned int end, int in
     return min;
 }
 
+double RenderArea::getMin(Envelope *env, unsigned int start, unsigned int end)
+{
+    double min = 0;
+
+    for(unsigned int i = start + 1; i < end; i++)
+    {
+        if(env->data[i] < min)
+        {
+            min = env->data[i];
+        }
+    }
+
+    return min;
+}
+
 void RenderArea::plotWave(wave *wav)
 {
     QPainter painter(this);
-    QPen wavePen = QPen(QColor(63, 171, 255, 255));
+    QPen wavePen = QPen(QColor(159, 159, 159, 255));
+    painter.setPen(wavePen);
+
+    painter.drawLine(0, height()/2, width(), height()/2);
+
+    wavePen.setColor(QColor(63, 171, 255, 255));
     painter.setPen(wavePen);
 
     if(wav->NumChannels == 2)
     {
         unsigned int sampleCount = wav->Subchunk2Size / 4;
 
-        double scale = (double)(sampleCount - 1)/(double)width();
+        double scale = ((double)(sampleCount - 1)/(double)width())/zoom;
 
         double x1, x2, y1, y2;
 
@@ -88,14 +113,14 @@ void RenderArea::plotWave(wave *wav)
             for(int i = 0; i < width(); i++)
             {
                 x1 = i;
-                y1 = height()/2 - (double)getMin(wav, i*(double)scale, (i+1)*scale, 2)/(double)65355*height();
+                y1 = height()/2 - (double)getMin(wav, cursor + i*(double)scale, cursor + (i+1)*scale, 2)/(double)65355*height();
                 x2 = i;
-                y2 = height()/2 - (double)getMax(wav, i*(double)scale, (i+1)*scale, 2)/(double)65355*height();
+                y2 = height()/2 - (double)getMax(wav, cursor + i*(double)scale, cursor + (i+1)*scale, 2)/(double)65355*height();
 
                 painter.drawLine(x1, y1, x2, y2);
 
-                y1 = height()/2 - (double)getMin(wav, 1+i*(double)scale, 1+(i+1)*scale, 2)/(double)65355*height();
-                y2 = height()/2 - (double)getMax(wav, 1+i*(double)scale, 1+(i+1)*scale, 2)/(double)65355*height();
+                y1 = height()/2 - (double)getMin(wav, cursor + 1+i*(double)scale, cursor + 1+(i+1)*scale, 2)/(double)65355*height();
+                y2 = height()/2 - (double)getMax(wav, cursor + 1+i*(double)scale, cursor + 1+(i+1)*scale, 2)/(double)65355*height();
 
                 painter.drawLine(x1, y1, x2, y2);
             }
@@ -103,18 +128,21 @@ void RenderArea::plotWave(wave *wav)
         else
         {
             painter.setRenderHint(QPainter::Antialiasing, true);
+            wavePen.setCapStyle(Qt::RoundCap);
+            wavePen.setWidth(2);
+            painter.setPen(wavePen);
 
-            for(unsigned int i = 0; i < sampleCount - 1; i++)
+            for(unsigned int i = 0; i < (sampleCount - 1)/zoom; i++)
             {
                 x1 = (double)i/scale;
-                y1 = height()/2 - (double)wav->data[2*i]/(double)65355*height();
+                y1 = height()/2 + 1 - (double)wav->data[2*cursor + 2*i]/(double)65355*(height() - 4);
                 x2 = (double)(i+1)/scale;
-                y2 = height()/2 - (double)wav->data[2*(i+1)]/(double)65355*height();
+                y2 = height()/2 + 1 - (double)wav->data[2*cursor + 2*(i+1)]/(double)65355*(height() - 4);
 
                 painter.drawLine(x1, y1, x2, y2);
 
-                y1 = height()/2 - (double)wav->data[2*i+1]/(double)65355*height();
-                y2 = height()/2 - (double)wav->data[2*(i+1)+1]/(double)65355*height();
+                y1 = height()/2 + 1 - (double)wav->data[2*cursor + 2*i+1]/(double)65355*(height() - 4);
+                y2 = height()/2 + 1 - (double)wav->data[2*cursor + 2*(i+1)+1]/(double)65355*(height() - 4);
 
                 painter.drawLine(x1, y1, x2, y2);
             }
@@ -124,7 +152,7 @@ void RenderArea::plotWave(wave *wav)
     {
         unsigned int sampleCount = wav->Subchunk2Size / 2;
 
-        double scale = (double)(sampleCount - 1)/(double)width();
+        double scale = ((double)(sampleCount - 1)/(double)width())/zoom;
 
         double x1, x2, y1, y2;
 
@@ -135,9 +163,9 @@ void RenderArea::plotWave(wave *wav)
             for(int i = 0; i < width(); i++)
             {
                 x1 = i;
-                y1 = height()/2 - (double)getMin(wav, i*(double)scale, (i+1)*scale, 1)/(double)65355*height();
+                y1 = height()/2 - (double)getMin(wav, cursor + i*(double)scale, cursor + (i+1)*scale, 1)/(double)65355*height();
                 x2 = i;
-                y2 = height()/2 - (double)getMax(wav, i*(double)scale, (i+1)*scale, 1)/(double)65355*height();
+                y2 = height()/2 - (double)getMax(wav, cursor + i*(double)scale, cursor + (i+1)*scale, 1)/(double)65355*height();
 
                 painter.drawLine(x1, y1, x2, y2);
             }
@@ -145,13 +173,16 @@ void RenderArea::plotWave(wave *wav)
         else
         {
             painter.setRenderHint(QPainter::Antialiasing, true);
+            wavePen.setWidth(2);
+            wavePen.setCapStyle(Qt::RoundCap);
+            painter.setPen(wavePen);
 
-            for(unsigned int i = 0; i < sampleCount - 1; i++)
+            for(unsigned int i = 0; i < (sampleCount - 1)/zoom; i++)
             {
                 x1 = (double)i/scale;
-                y1 = height()/2 - (double)wav->data[i]/(double)65355*height();
+                y1 = height()/2 + 1 - (double)wav->data[cursor + i]/(double)65355*(height() - 4);
                 x2 = (double)(i+1)/scale;
-                y2 = height()/2 - (double)wav->data[i+1]/(double)65355*height();
+                y2 = height()/2 + 1 - (double)wav->data[cursor + i+1]/(double)65355*(height() - 4);
 
                 painter.drawLine(x1, y1, x2, y2);
             }
@@ -159,40 +190,78 @@ void RenderArea::plotWave(wave *wav)
     }
 }
 
-void RenderArea::plotEnvelope(Envelope *env)
+void RenderArea::plotEnvelope(Envelope *env, bool reversed, bool fill)
 {
     QPainter painter(this);
-    QPen wavePen = QPen(QColor(31, 255, 127, 255));
-    painter.setPen(wavePen);
+    QPen envPen = QPen(*env->color);
+    envPen.setWidth(2);
+    envPen.setCapStyle(Qt::RoundCap);
+    painter.setPen(envPen);
 
-    double scale = (double)(env->samples - 1)/(double)width();
+    double scale = ((double)(env->samples - 1)/(double)width())/zoom;
 
     double x1, x2, y1, y2;
 
+    painter.setRenderHint(QPainter::Antialiasing, true);
+
+    QColor c1(*env->color);
+    QColor c2(*env->color);
+    c1.setAlpha(c1.alpha()/12);
+    c2.setAlpha(c2.alpha()/1.5);
+
     if(scale > 2)
     {
-        painter.setRenderHint(QPainter::Antialiasing, false);
-
-        for(int i = 0; i < width(); i++)
+        if(reversed)
         {
-            x1 = i;
-            y1 = height()/2 + (double)getMax(env, i*(double)scale, (i+1)*scale)/(double)65355*height();
-            x2 = i;
-            y2 = height()/2 - (double)getMax(env, i*(double)scale, (i+1)*scale)/(double)65355*height();
+            QRect rect(QPoint(0, 0), QPoint(0, getMin(env, cursor, cursor + env->samples/zoom)/(-96.33)*height()));
+            QLinearGradient gr(rect.topLeft(), rect.bottomRight());
 
-            painter.drawLine(x1, y1, x2, y2);
+            gr.setColorAt(0, c1);
+            gr.setColorAt(1, c2);
+
+            for(int i = 0; i < width() - 1; i++)
+            {
+                x1 = i;
+                y1 = 0 - getMin(env, cursor + i*scale, cursor + (i+1)*scale)/96.33*height();
+                x2 = i+1;
+                y2 = 0 - getMin(env, cursor + (i+1)*scale, cursor + (i+2)*scale)/96.33*height();
+
+                if(fill)
+                    painter.fillRect(i, 0, 1, getMin(env, cursor + i*scale, cursor + (i+1)*scale)/(-96.33)*height() - 1, gr);
+
+                painter.drawLine(x1, y1, x2, y2);
+            }
+        }
+        else
+        {
+            QRect rect(QPoint(0, getMax(env, cursor, cursor + env->samples/zoom)/(-96.33)*height()), QPoint(0, height()));
+            QLinearGradient gr(rect.topLeft(), rect.bottomRight());
+
+            gr.setColorAt(1, c1);
+            gr.setColorAt(0, c2);
+
+            for(int i = 0; i < width() - 1; i++)
+            {
+                x1 = i;
+                y1 = 0 - getMax(env, cursor + i*scale, cursor + (i+1)*scale)/96.33*height();
+                x2 = i+1;
+                y2 = 0 - getMax(env, cursor + (i+1)*scale, cursor + (i+2)*scale)/96.33*height();
+
+                if(fill)
+                    painter.fillRect(i, getMax(env, cursor + i*scale, cursor + (i+1)*scale)/(-96.33)*height() + 1, 1, height(), gr);
+
+                painter.drawLine(x1, y1, x2, y2);
+            }
         }
     }
     else
     {
-        painter.setRenderHint(QPainter::Antialiasing, true);
-
-        for(unsigned int i = 0; i < env->samples - 1; i++)
+        for(unsigned int i = 0; i < (env->samples - 1)/zoom; i++)
         {
             x1 = (double)i/scale;
-            y1 = height()/2 - (double)env->data[i]/(double)65355*height();
+            y1 = 0 - env->data[cursor + i]/96.33*height();
             x2 = (double)(i+1)/scale;
-            y2 = height()/2 - (double)env->data[i+1]/(double)65355*height();
+            y2 = 0 - env->data[cursor + i+1]/96.33*height();
 
             painter.drawLine(x1, y1, x2, y2);
         }
@@ -230,14 +299,14 @@ void RenderArea::plotStaticChar(GainComputer *g)
         painter.drawLine(p1, p2);
     }
 
-    charPen.setColor(QColor(255, 141, 141, 205));
+    charPen.setColor(QColor(255, 63, 63, 255));
     painter.setPen(charPen);
 
     painter.drawLine((96.33 + g->getThreshold() - g->getKneeWidth()/2)*width()/96.33, 0, (96.33 + g->getThreshold() - g->getKneeWidth()/2)*width()/96.33, height());
     painter.drawLine((96.33 + g->getThreshold() + g->getKneeWidth()/2)*width()/96.33, 0, (96.33 + g->getThreshold() + g->getKneeWidth()/2)*width()/96.33, height());
 
-    charPen.setColor(QColor(63, 255, 63, 255));
-    charPen.setWidth(1);
+    charPen.setColor(QColor(31, 221, 31, 255));
+    charPen.setWidth(2);
     painter.setPen(charPen);
 
     painter.drawLine((96.33 + g->getThreshold())/96.33*width(), 0, (96.33 + g->getThreshold())/96.33*width(), height());
@@ -274,11 +343,24 @@ void RenderArea::plotStaticChar(GainComputer *g)
     }
 }
 
+void RenderArea::transform(double zoom, int cursor)
+{
+    this->zoom = zoom;
+    this->cursor = cursor;
+
+    this->update();
+}
+
 void RenderArea::paintEvent(QPaintEvent *event)
 {
     if(env1 != nullptr)
     {
-        //plotEnvelope(env1);
+        plotEnvelope(env1, false, true);
+    } 
+
+    if(env2 != nullptr)
+    {
+        plotEnvelope(env2, true, true);
     }
 
     if(sound != nullptr)
@@ -289,6 +371,23 @@ void RenderArea::paintEvent(QPaintEvent *event)
     if(gainComputer != nullptr)
     {
         plotStaticChar(gainComputer);
+    }
+
+    if(drawParam != nullptr)
+    {
+        QPainter paint(this);
+        paint.setRenderHint(QPainter::Antialiasing, true);
+
+        QRect rect(QPoint(0, drawParam->getThreshold()/(-96.33)*height()), QPoint(0, drawParam->getThreshold()/(-96.33)*height() + height()/2));
+        QLinearGradient gr(rect.topLeft(), rect.bottomRight());
+        gr.setColorAt(0, QColor(31, 221, 31, 79));
+        gr.setColorAt(1, QColor(31, 221, 31, 0));
+        paint.fillRect(0, drawParam->getThreshold()/(-96.33)*height(), width(), height()/2, gr);
+
+        pen.setColor(QColor(31, 221, 31, 255));
+        pen.setWidth(2);
+        paint.setPen(pen);
+        paint.drawLine(0, drawParam->getThreshold()/(-96.33)*height(), width(), drawParam->getThreshold()/(-96.33)*height());
     }
 
     QPainter paint(this);
