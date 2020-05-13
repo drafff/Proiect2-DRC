@@ -21,7 +21,8 @@ public:
 
     enum plotType {waveform, envelope, staticChar};
 
-    wave *sound; 
+    wave *sound;
+    wave *sound_out;
     Envelope *env1;
     Envelope *env2;
     GainComputer *gainComputer;
@@ -37,7 +38,7 @@ public:
     double getMin(Envelope *env, unsigned int start, unsigned int end);
 
     void plot(wave *audio, QPainter *paint);
-    void plotWave(wave *sound);
+    void plotWave(wave *sound, QColor *color);
     void plotEnvelope(Envelope *env, bool reversed, bool fill);
     void plotStaticChar(GainComputer *g);
     void transform(double zoom, int cursor);

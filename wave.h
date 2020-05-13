@@ -12,6 +12,7 @@ class wave
 public:
     wave();
     wave(wave *src);
+    wave(wave *src, int value);
     wave(int length);
     ~wave();
 
@@ -20,7 +21,10 @@ public:
     void init();
     void displayError(QString message);
     int read_field(QFile &file, endianess order, short bytes);
+    void write_2B(QFile &file, endianess order, short bytes);
+    void write_4B(QFile &file, endianess order, int bytes);
     void load(QString path);
+    void store(QString path);
     void mergeStereo(wave *stereo);
     void toAbs();
 

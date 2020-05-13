@@ -8,6 +8,7 @@ RenderArea::RenderArea(QWidget *parent) : QWidget(parent)
     pen = QPen(QColor(127, 127, 255, 255));
 
     sound = nullptr;
+    sound_out = nullptr;
     env1 = nullptr;
     env2 = nullptr;
     gainComputer = nullptr;
@@ -87,7 +88,7 @@ double RenderArea::getMin(Envelope *env, unsigned int start, unsigned int end)
     return min;
 }
 
-void RenderArea::plotWave(wave *wav)
+void RenderArea::plotWave(wave *wav, QColor *color)
 {
     QPainter painter(this);
     QPen wavePen = QPen(QColor(159, 159, 159, 255));
@@ -95,7 +96,7 @@ void RenderArea::plotWave(wave *wav)
 
     painter.drawLine(0, height()/2, width(), height()/2);
 
-    wavePen.setColor(QColor(63, 171, 255, 255));
+    wavePen.setColor(*color);
     painter.setPen(wavePen);
 
     if(wav->NumChannels == 2)
@@ -365,7 +366,12 @@ void RenderArea::paintEvent(QPaintEvent *event)
 
     if(sound != nullptr)
     {
-        plotWave(sound);
+        plotWave(sound, new QColor(63, 171, 255, 255));
+    }
+
+    if(sound_out != nullptr)
+    {
+        plotWave(sound_out, new QColor(191, 63, 255, 255));
     }
 
     if(gainComputer != nullptr)

@@ -37,7 +37,7 @@ wave::wave(wave *src)
     this->BitsPerSample = src->BitsPerSample;
     this->Subchunk2ID = src->Subchunk2ID;
     this->Subchunk2Size = src->Subchunk2Size;
-    this->data = new short(this->Subchunk2Size / 2);
+    this->data = new short[this->Subchunk2Size / 2];
 
     if(this->data == nullptr)
     {
@@ -49,6 +49,38 @@ wave::wave(wave *src)
     for(int i = 0; i < this->Subchunk2Size / 2; i++)
     {
         this->data[i] = src->data[i];
+    }
+
+    this->loaded = src->loaded;
+}
+
+wave::wave(wave *src, int value)
+{
+    this->ChunkID = src->ChunkID;
+    this->ChunkSize = src->ChunkSize;
+    this->Format = src->Format;
+    this->Subchunk1ID = src->Subchunk1ID;
+    this->Subchunk1Size = src->Subchunk1Size;
+    this->AudioFormat = src->AudioFormat;
+    this->NumChannels = src->NumChannels;
+    this->SampleRate = src->SampleRate;
+    this->ByteRate = src->ByteRate;
+    this->BlockAlign = src->BlockAlign;
+    this->BitsPerSample = src->BitsPerSample;
+    this->Subchunk2ID = src->Subchunk2ID;
+    this->Subchunk2Size = src->Subchunk2Size;
+    this->data = new short[this->Subchunk2Size / 2];
+
+    if(this->data == nullptr)
+    {
+        displayError(*new QString("Memory allocation error."));
+        wave::init();
+        return;
+    }
+
+    for(int i = 0; i < this->Subchunk2Size / 2; i++)
+    {
+        this->data[i] = value;
     }
 
     this->loaded = src->loaded;
@@ -180,6 +212,59 @@ int wave::read_field(QFile &file, endianess order, short bytes)
     }
 }
 
+void wave::write_2B(QFile &file, endianess order, short bytes)
+{
+    QDataStream out(&file);
+    char* buffer = new char[2];
+    unsigned int test;
+
+    if(order == little)
+    {
+        for(int i = 0; i < 2; i++)
+        {
+            buffer[i] = (unsigned int)(bytes & (0x00FF<<(i*8)))>>(i*8);
+            test = (bytes & (0x00FF<<(i*8)))>>(i*8);
+        }
+    }
+    else
+    {
+        for(int i = 0; i < 2; i++)
+        {
+            buffer[i] = (unsigned int)(bytes & (0xFF00>>(i*8)))>>((1-i)*8);
+            test = (bytes & (0xFF00>>(i*8)))>>((1-i)*8);
+        }
+    }
+
+    out.writeRawData(buffer, 2);
+}
+
+void wave::write_4B(QFile &file, endianess order, int bytes)
+{
+    QDataStream out(&file);
+    char* buffer = new char[4];
+
+    unsigned int test;
+
+    if(order == little)
+    {
+        for(int i = 0; i < 4; i++)
+        {
+            buffer[i] = (unsigned int)(bytes & (0x000000FF<<(i*8)))>>(i*8);
+            test = (bytes & (0x000000FF<<(i*8)))>>(i*8);
+        }
+    }
+    else
+    {
+        for(int i = 0; i < 4; i++)
+        {
+            buffer[i] = (unsigned int)(bytes & (0xFF000000>>(i*8)))>>((3-i)*8);
+            test = (bytes & (0xFF000000>>(i*8)))>>((3-i)*8);
+        }
+    }
+
+    out.writeRawData(buffer, 4);
+}
+
 void wave::load(QString path)
 {
     QFile file(path);
@@ -220,6 +305,36 @@ void wave::load(QString path)
 
     loaded = true;
     file.close();
+}
+
+void wave::store(QString path)
+{
+    QFile file(path);
+    if(!file.open(QIODevice::WriteOnly))
+    {
+        displayError(*new QString("Unable to create the file"));
+        return;
+    }
+
+    write_4B(file, big, ChunkID);
+    write_4B(file, little, ChunkSize);
+    write_4B(file, big, Format);
+    write_4B(file, big, Subchunk1ID);
+    write_4B(file, little, Subchunk1Size);
+    write_2B(file, little, AudioFormat);
+    write_2B(file, little, NumChannels);
+    write_4B(file, little, SampleRate);
+    write_4B(file, little, ByteRate);
+    write_2B(file, little, BlockAlign);
+    write_2B(file, little, BitsPerSample);
+    write_4B(file, big, Subchunk2ID);
+    write_4B(file, little, Subchunk2Size);
+
+    for(int i = 0; i < Subchunk2Size / 2; i++)
+    {
+        write_2B(file, little, data[i]);
+    }
+
 }
 
 void wave::mergeStereo(wave *stereo)
@@ -270,14 +385,3 @@ void wave::toAbs()
 
     return;
 }
-
-
-
-
-
-
-
-
-
-
-

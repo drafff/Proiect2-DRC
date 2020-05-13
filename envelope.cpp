@@ -3,6 +3,7 @@
 Envelope::Envelope()
 {
     samples = 0;
+    fs = 0;
     data = nullptr;
 
     color = new QColor(63, 171, 255, 255);
@@ -31,4 +32,9 @@ void Envelope::setColor(int R, int G, int B, int A)
 {
     delete color;
     color = new QColor(R, G, B, A);
+}
+
+void Envelope::setFS(int fs)
+{
+    this->fs = fs;
 }
